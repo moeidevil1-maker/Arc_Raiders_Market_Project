@@ -1,15 +1,17 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 
-const ArcButton = ({ children, color = 'blue', onClick, className = '' }) => {
+const ArcButton = ({ children, color = 'blue', onClick, className = '', style = {} }) => {
   const colorMap = {
     blue: 'var(--btn-blue)',
     green: 'var(--btn-green)',
     red: 'var(--btn-red)',
     yellow: 'var(--btn-yellow)',
+    white: '#ffffff',
+    gray: '#666666',
   };
 
-  const selectedColor = colorMap[color] || colorMap.blue;
+  const selectedColor = colorMap[color] || color;
 
   return (
     <motion.button
@@ -31,14 +33,15 @@ const ArcButton = ({ children, color = 'blue', onClick, className = '' }) => {
         alignItems: 'center',
         gap: '10px',
         transition: 'background-color 0.3s ease',
+        ...style
       }}
       className={`arc-button ${className}`}
       onContextMenu={(e) => {
-          // Custom hover effect for filling background
-          e.currentTarget.style.backgroundColor = selectedColor;
+        // Custom hover effect for filling background
+        e.currentTarget.style.backgroundColor = selectedColor;
       }}
       onMouseLeave={(e) => {
-          e.currentTarget.style.backgroundColor = 'transparent';
+        e.currentTarget.style.backgroundColor = 'transparent';
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.backgroundColor = selectedColor;

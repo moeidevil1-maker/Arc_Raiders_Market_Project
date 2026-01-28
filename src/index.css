@@ -120,3 +120,42 @@ ul {
   pointer-events: none;
   z-index: 1;
 }
+
+/* Hover Effects */
+.hover-cyan:hover {
+  color: var(--arc-cyan) !important;
+  text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+}
+
+.hover-white:hover {
+  color: #fff !important;
+  opacity: 1 !important;
+}
+
+/* Responsive Utilities */
+@media (max-width: 768px) {
+  body {
+    font-size: 14px;
+  }
+
+  .hide-mobile {
+    display: none !important;
+  }
+}
+
+@media (min-width: 769px) {
+  .hide-desktop {
+    display: none !important;
+  }
+}
+
+/* Smooth Transitions */
+* {
+  transition: all 0.2s ease;
+}
+
+button,
+a,
+input {
+  transition: all 0.3s ease;
+}

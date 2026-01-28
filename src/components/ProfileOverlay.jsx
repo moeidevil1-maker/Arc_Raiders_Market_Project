@@ -1,11 +1,11 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, LogOut, User, Shield, Zap, Award } from 'lucide-react';
+import { X, LogOut, User, Shield, Zap, Award, ExternalLink } from 'lucide-react';
 import ArcButton from './ArcButton';
 import { supabase } from '../lib/supabase';
 import CreditTopupModal from './CreditTopupModal';
 
-const ProfileOverlay = ({ user, role, isOpen, onClose, onCreditsUpdate }) => {
+const ProfileOverlay = ({ user, role, credits, isOpen, onClose, onCreditsUpdate, onOpenAdmin }) => {
     if (!isOpen) return null;
 
     const [isTopupOpen, setIsTopupOpen] = React.useState(false);
@@ -49,6 +49,19 @@ const ProfileOverlay = ({ user, role, isOpen, onClose, onCreditsUpdate }) => {
                         <div style={infoSectionStyle}>
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
                                 <h3 style={userNameStyle}>{user?.user_metadata?.full_name || 'RAIDER'}</h3>
+                                {role?.toLowerCase() === 'owner' && (
+                                    <span style={{
+                                        backgroundColor: '#ff00ff',
+                                        color: '#fff',
+                                        fontSize: '10px',
+                                        padding: '2px 8px',
+                                        borderRadius: '3px',
+                                        fontWeight: '900',
+                                        border: '1px solid rgba(255,255,255,0.3)',
+                                        boxShadow: '0 0 10px rgba(255,0,255,0.5)',
+                                        letterSpacing: '1px'
+                                    }}>OWNER</span>
+                                )}
                                 {role?.toLowerCase() === 'admin' && (
                                     <span style={{
                                         backgroundColor: '#ff4444',
@@ -60,6 +73,25 @@ const ProfileOverlay = ({ user, role, isOpen, onClose, onCreditsUpdate }) => {
                                         border: '1px solid rgba(255,255,255,0.2)'
                                     }}>ADMIN</span>
                                 )}
+                                {(role?.toLowerCase() === 'admin' || role?.toLowerCase() === 'owner') && (
+                                    <div
+                                        onClick={onOpenAdmin}
+                                        style={{
+                                            cursor: 'pointer',
+                                            backgroundColor: 'rgba(255,255,255,0.1)',
+                                            color: '#fff',
+                                            fontSize: '10px',
+                                            padding: '2px 6px',
+                                            borderRadius: '3px',
+                                            fontWeight: 'bold',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '4px'
+                                        }}
+                                    >
+                                        <ExternalLink size={10} /> SYSTEM CONTROL
+                                    </div>
+                                )}
                             </div>
                             <p style={userEmailStyle}>{user?.email}</p>
 
@@ -68,7 +100,10 @@ const ProfileOverlay = ({ user, role, isOpen, onClose, onCreditsUpdate }) => {
                                     <Award size={16} className="text-cyan" />
                                     <div>
                                         <p style={statLabelStyle}>RANK</p>
-                                        <p style={statValueStyle}>{role?.toLowerCase() === 'admin' ? 'ADMINISTRATOR' : 'USER ทั่วไป'}</p>
+                                        <p style={statValueStyle}>
+                                            {role?.toLowerCase() === 'owner' ? 'SYSTEM OWNER' :
+                                                role?.toLowerCase() === 'admin' ? 'ADMINISTRATOR' : 'USER ทั่วไป'}
+                                        </p>
                                     </div>
                                 </div>
                             </div>
