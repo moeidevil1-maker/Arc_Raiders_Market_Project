@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Send, Users as UsersIcon, MessageCircle, Volume2, Trash2, Search, Menu } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { useLanguage } from '../lib/LanguageContext';
 
 const ChatOverlay = ({ isOpen, onClose, currentUser, onUnreadCountChange }) => {
+    const { lang, t } = useLanguage();
     const [selectedChat, setSelectedChat] = useState(null);
     const [users, setUsers] = useState([]);
     const [messages, setMessages] = useState([]);
@@ -13,6 +15,18 @@ const ChatOverlay = ({ isOpen, onClose, currentUser, onUnreadCountChange }) => {
     const [unreadMessages, setUnreadMessages] = useState({});
     const [isSoundEnabled, setIsSoundEnabled] = useState(true);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(true); // For mobile drawer
+
+    const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+
+    useEffect(() => {
+        const handleResize = () => {
+            setIsMobile(window.innerWidth <= 768);
+        };
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
+    const styles = getStyles(isMobile, isMobileMenuOpen);
 
     useEffect(() => {
         if (isOpen) {
@@ -48,7 +62,7 @@ const ChatOverlay = ({ isOpen, onClose, currentUser, onUnreadCountChange }) => {
             fetchMessages();
             subscribeToMessages();
             // Close mobile menu when chat is selected
-            if (window.innerWidth <= 768) {
+            if (isMobile) {
                 setIsMobileMenuOpen(false);
             }
         }
@@ -58,7 +72,7 @@ const ChatOverlay = ({ isOpen, onClose, currentUser, onUnreadCountChange }) => {
             const channelName = `messages-${currentUser?.id}`;
             supabase.channel(channelName).unsubscribe();
         };
-    }, [selectedChat, currentUser]);
+    }, [selectedChat, currentUser, isMobile]);
 
     // Global listener for all incoming messages (for notifications)
     useEffect(() => {
@@ -226,7 +240,7 @@ const ChatOverlay = ({ isOpen, onClose, currentUser, onUnreadCountChange }) => {
         if (!selectedChat || !currentUser) return;
 
         const confirmDelete = window.confirm(
-            `คุณต้องการลบประวัติการสนทนากับ ${selectedChat.email} ใช่หรือไม่?\n\nการกระทำนี้ไม่สามารถย้อนกลับได้`
+            `${t('DELETE_CHAT_CONFIRM')} (${selectedChat.email})`
         );
 
         if (!confirmDelete) return;
@@ -242,10 +256,10 @@ const ChatOverlay = ({ isOpen, onClose, currentUser, onUnreadCountChange }) => {
 
             // Clear local messages
             setMessages([]);
-            alert('ลบประวัติการสนทนาเรียบร้อยแล้ว');
+            alert(t('CHAT_DELETED'));
         } catch (error) {
             console.error('Error deleting chat history:', error.message);
-            alert('ไม่สามารถลบประวัติการสนทนาได้ กรุณาลองใหม่อีกครั้ง');
+            alert(t('CANT_DELETE'));
         }
     };
 
@@ -282,7 +296,7 @@ const ChatOverlay = ({ isOpen, onClose, currentUser, onUnreadCountChange }) => {
             setMessages(prev => [...prev, newMessage]);
         } catch (error) {
             console.error('Error sending message:', error.message);
-            alert('ไม่สามารถส่งข้อความได้ กรุณาลองใหม่อีกครั้ง');
+            alert(t('CANT_SEND'));
             setMessageInput(messageText); // Restore message on error
         }
     };
@@ -301,7 +315,7 @@ const ChatOverlay = ({ isOpen, onClose, currentUser, onUnreadCountChange }) => {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                style={overlayBackdrop}
+                style={styles.overlayBackdrop}
                 onClick={onClose}
             >
                 <motion.div
@@ -309,90 +323,87 @@ const ChatOverlay = ({ isOpen, onClose, currentUser, onUnreadCountChange }) => {
                     animate={{ scale: 1, opacity: 1 }}
                     exit={{ scale: 0.95, opacity: 0 }}
                     transition={{ type: 'spring', damping: 25 }}
-                    style={chatContainer}
+                    style={styles.chatContainer}
                     onClick={(e) => e.stopPropagation()}
                 >
                     {/* Header */}
-                    <div style={headerStyle}>
+                    <div style={styles.headerStyle}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                             {/* Mobile Menu Toggle */}
                             <div
                                 className="hide-desktop"
                                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                                style={{ ...iconButton, marginRight: '5px' }}
+                                style={{ ...styles.iconButton, marginRight: '5px' }}
                             >
                                 <Menu size={20} />
                             </div>
                             <MessageCircle size={20} color="var(--arc-yellow)" />
-                            <span style={headerTitle}>ข้อความ</span>
+                            <span style={styles.headerTitle}>{t('MESSAGES')}</span>
                         </div>
                         <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
                             <div
                                 onClick={() => setIsSoundEnabled(!isSoundEnabled)}
-                                style={{ ...iconButton, color: isSoundEnabled ? 'var(--arc-yellow)' : 'rgba(255,255,255,0.3)' }}
-                                title={isSoundEnabled ? 'ปิดเสียงแจ้งเตือน' : 'เปิดเสียงแจ้งเตือน'}
+                                style={{ ...styles.iconButton, color: isSoundEnabled ? 'var(--arc-yellow)' : 'rgba(255,255,255,0.3)' }}
+                                title={isSoundEnabled ? t('MUTE_NOTIF') : t('UNMUTE_NOTIF')}
                             >
                                 <Volume2 size={18} />
                             </div>
                             {selectedChat && (
                                 <div
                                     onClick={handleDeleteChatHistory}
-                                    style={{ ...iconButton, color: '#ff4444' }}
-                                    title="ลบประวัติการสนทนา"
+                                    style={{ ...styles.iconButton, color: '#ff4444' }}
+                                    title={t('DELETE_CHAT_HIST')}
                                 >
                                     <Trash2 size={18} />
                                 </div>
                             )}
-                            <X size={20} style={iconButton} onClick={onClose} />
+                            <X size={20} style={styles.iconButton} onClick={onClose} />
                         </div>
                     </div>
 
                     {/* Main Content - Split Panel */}
-                    <div style={mainContent}>
+                    <div style={styles.mainContent}>
                         {/* Left Panel - User List */}
-                        <div style={{
-                            ...leftPanel,
-                            transform: isMobileMenuOpen ? 'translateX(0)' : 'translateX(-100%)',
-                        }}>
-                            <div style={searchContainer}>
+                        <div style={styles.leftPanel}>
+                            <div style={styles.searchContainer}>
                                 <Search size={16} color="rgba(255,255,255,0.4)" />
                                 <input
                                     type="text"
-                                    placeholder="ค้นหาผู้ใช้..."
+                                    placeholder={t('SEARCH_USER')}
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
-                                    style={searchInput}
+                                    style={styles.searchInput}
                                 />
                             </div>
 
-                            <div style={userListContainer}>
+                            <div style={styles.userListContainer}>
                                 {loading ? (
-                                    <div style={centerText}>กำลังโหลด...</div>
+                                    <div style={styles.centerText}>{t('LOADING_DATA')}</div>
                                 ) : filteredUsers.length === 0 ? (
-                                    <div style={centerText}>ไม่พบผู้ใช้</div>
+                                    <div style={styles.centerText}>{t('NO_DATA')}</div>
                                 ) : (
                                     filteredUsers.map(user => (
                                         <div
                                             key={user.id}
                                             onClick={() => handleSelectChat(user)}
                                             style={{
-                                                ...userItem,
+                                                ...styles.userItem,
                                                 background: selectedChat?.id === user.id ? 'rgba(255, 200, 0, 0.1)' : '#111',
                                                 borderLeft: selectedChat?.id === user.id ? '3px solid var(--arc-yellow)' : '3px solid transparent'
                                             }}
                                         >
-                                            <div style={userAvatar}>
+                                            <div style={styles.userAvatar}>
                                                 {user.email?.charAt(0).toUpperCase()}
                                             </div>
                                             <div style={{ flex: 1, overflow: 'hidden' }}>
-                                                <p style={userName}>{user.email}</p>
-                                                <p style={userStatus}>
-                                                    <span style={onlineDot}></span>
-                                                    Online
+                                                <p style={styles.userName}>{user.email}</p>
+                                                <p style={styles.userStatus}>
+                                                    <span style={styles.onlineDot}></span>
+                                                    {t('ONLINE')}
                                                 </p>
                                             </div>
                                             {unreadMessages[user.id] > 0 && (
-                                                <div style={unreadBadge}>{unreadMessages[user.id]}</div>
+                                                <div style={styles.unreadBadge}>{unreadMessages[user.id]}</div>
                                             )}
                                         </div>
                                     ))
@@ -401,33 +412,33 @@ const ChatOverlay = ({ isOpen, onClose, currentUser, onUnreadCountChange }) => {
                         </div>
 
                         {/* Right Panel - Chat Area */}
-                        <div style={rightPanel}>
+                        <div style={styles.rightPanel}>
                             {selectedChat ? (
                                 <>
                                     {/* Chat Header */}
-                                    <div style={chatHeader}>
+                                    <div style={styles.chatHeader}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                            <div style={userAvatar}>
+                                            <div style={styles.userAvatar}>
                                                 {selectedChat.email?.charAt(0).toUpperCase()}
                                             </div>
                                             <div>
-                                                <p style={chatHeaderName}>{selectedChat.email}</p>
-                                                <p style={chatHeaderStatus}>
-                                                    <span style={onlineDot}></span>
-                                                    Online
+                                                <p style={styles.chatHeaderName}>{selectedChat.email}</p>
+                                                <p style={styles.chatHeaderStatus}>
+                                                    <span style={styles.onlineDot}></span>
+                                                    {t('ONLINE')}
                                                 </p>
                                             </div>
                                         </div>
                                     </div>
 
                                     {/* Messages */}
-                                    <div style={messagesContainer}>
+                                    <div style={styles.messagesContainer}>
                                         {messages.length === 0 ? (
-                                            <div style={centerText}>
+                                            <div style={styles.centerText}>
                                                 <MessageCircle size={48} color="rgba(255,255,255,0.1)" style={{ marginBottom: '15px' }} />
-                                                <p>เริ่มต้นการสนทนา</p>
+                                                <p>{t('START_CONVO')}</p>
                                                 <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.3)' }}>
-                                                    ส่งข้อความแรกเพื่อเริ่มแชทกับ {selectedChat.email}
+                                                    {t('SEND_FIRST_MSG')} {selectedChat.email}
                                                 </p>
                                             </div>
                                         ) : (
@@ -435,19 +446,19 @@ const ChatOverlay = ({ isOpen, onClose, currentUser, onUnreadCountChange }) => {
                                                 <div
                                                     key={msg.id}
                                                     style={{
-                                                        ...messageBubble,
+                                                        ...styles.messageBubble,
                                                         alignSelf: msg.isCurrentUser ? 'flex-end' : 'flex-start',
                                                         background: msg.isCurrentUser ? 'var(--arc-yellow)' : '#1a1a1a',
                                                         color: msg.isCurrentUser ? '#000' : '#fff'
                                                     }}
                                                 >
-                                                    {!msg.isCurrentUser && <p style={messageSender}>{msg.sender}</p>}
-                                                    <p style={messageText}>{msg.text}</p>
+                                                    {!msg.isCurrentUser && <p style={styles.messageSender}>{msg.sender}</p>}
+                                                    <p style={styles.messageText}>{msg.text}</p>
                                                     <p style={{
-                                                        ...messageTime,
+                                                        ...styles.messageTime,
                                                         color: msg.isCurrentUser ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.5)'
                                                     }}>
-                                                        {new Date(msg.timestamp).toLocaleTimeString('th-TH', {
+                                                        {new Date(msg.timestamp).toLocaleTimeString(lang === 'TH' ? 'th-TH' : 'en-US', {
                                                             hour: '2-digit',
                                                             minute: '2-digit'
                                                         })}
@@ -458,10 +469,10 @@ const ChatOverlay = ({ isOpen, onClose, currentUser, onUnreadCountChange }) => {
                                     </div>
 
                                     {/* Input */}
-                                    <div style={inputContainer}>
+                                    <div style={styles.inputContainer}>
                                         <input
                                             type="text"
-                                            placeholder="พิมพ์ข้อความ..."
+                                            placeholder={t('TYPE_MSG')}
                                             value={messageInput}
                                             onChange={(e) => {
                                                 console.log('Input changed:', e.target.value);
@@ -470,22 +481,22 @@ const ChatOverlay = ({ isOpen, onClose, currentUser, onUnreadCountChange }) => {
                                             onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
                                             onFocus={() => console.log('Input focused')}
                                             onBlur={() => console.log('Input blurred')}
-                                            style={messageInputStyle}
+                                            style={styles.messageInputStyle}
                                             autoComplete="off"
                                         />
-                                        <button style={sendButton} onClick={handleSendMessage}>
+                                        <button style={styles.sendButton} onClick={handleSendMessage}>
                                             <Send size={18} />
                                         </button>
                                     </div>
                                 </>
                             ) : (
-                                <div style={emptyState}>
+                                <div style={styles.emptyState}>
                                     <MessageCircle size={64} color="rgba(255,255,255,0.1)" style={{ marginBottom: '20px' }} />
                                     <p style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '10px' }}>
-                                        เลือกผู้ใช้เพื่อเริ่มแชท
+                                        {t('START_CONVO')}
                                     </p>
                                     <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.4)' }}>
-                                        คลิกที่รายชื่อด้านซ้ายเพื่อเริ่มการสนทนา
+                                        {t('SEARCH_USER')}
                                     </p>
                                 </div>
                             )}
@@ -497,283 +508,271 @@ const ChatOverlay = ({ isOpen, onClose, currentUser, onUnreadCountChange }) => {
     );
 };
 
-// Styles with Responsive Design
-const overlayBackdrop = {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    width: '100%',
-    height: '100%',
-    background: 'rgba(0, 0, 0, 0.85)',
-    backdropFilter: 'blur(8px)',
-    zIndex: 9999,
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: '10px'
-};
-
-const chatContainer = {
-    width: '100%',
-    maxWidth: window.innerWidth <= 768 ? '100%' : '1100px',
-    height: window.innerWidth <= 768 ? '100%' : '700px',
-    background: '#0a0a0a',
-    border: '1px solid #222',
-    borderRadius: window.innerWidth <= 768 ? '0' : '12px',
-    display: 'flex',
-    flexDirection: 'column',
-    overflow: 'hidden',
-    boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)'
-};
-
-const headerStyle = {
-    padding: window.innerWidth <= 768 ? '15px 15px' : '20px 25px',
-    borderBottom: '1px solid #222',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    background: '#050505'
-};
-
-const headerTitle = {
-    fontSize: window.innerWidth <= 768 ? '14px' : '16px',
-    fontWeight: 'bold',
-    color: '#fff',
-    letterSpacing: '0.5px'
-};
-
-const iconButton = {
-    cursor: 'pointer',
-    color: 'rgba(255,255,255,0.5)',
-    transition: 'color 0.2s'
-};
-
-const mainContent = {
-    flex: 1,
-    display: 'flex',
-    overflow: 'hidden',
-    position: 'relative'
-};
-
-const leftPanel = {
-    width: window.innerWidth <= 768 ? '280px' : '320px',
-    borderRight: '1px solid #222',
-    display: 'flex',
-    flexDirection: 'column',
-    background: '#050505',
-    position: window.innerWidth <= 768 ? 'absolute' : 'relative',
-    height: '100%',
-    zIndex: 10,
-    transition: 'transform 0.3s ease'
-};
-
-const searchContainer = {
-    padding: '15px',
-    borderBottom: '1px solid #222',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '10px',
-    background: '#0a0a0a'
-};
-
-const searchInput = {
-    flex: 1,
-    background: 'transparent',
-    border: 'none',
-    color: '#fff',
-    fontSize: '13px',
-    outline: 'none'
-};
-
-const userListContainer = {
-    flex: 1,
-    overflowY: 'auto',
-    padding: '10px'
-};
-
-const userItem = {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '12px',
-    padding: '12px',
-    marginBottom: '5px',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    transition: 'all 0.2s'
-};
-
-const userAvatar = {
-    width: '40px',
-    height: '40px',
-    minWidth: '40px',
-    borderRadius: '50%',
-    background: 'linear-gradient(135deg, var(--arc-cyan), var(--arc-yellow))',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: '16px',
-    fontWeight: 'bold',
-    color: '#000'
-};
-
-const userName = {
-    margin: 0,
-    fontSize: window.innerWidth <= 768 ? '12px' : '13px',
-    fontWeight: 'bold',
-    color: '#fff',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap'
-};
-
-const userStatus = {
-    margin: 0,
-    fontSize: '11px',
-    color: 'rgba(255,255,255,0.4)',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '5px'
-};
-
-const onlineDot = {
-    width: '6px',
-    height: '6px',
-    borderRadius: '50%',
-    background: '#00ff00'
-};
-
-const unreadBadge = {
-    minWidth: '20px',
-    height: '20px',
-    borderRadius: '10px',
-    background: 'var(--arc-yellow)',
-    color: '#000',
-    fontSize: '10px',
-    fontWeight: 'bold',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '0 6px'
-};
-
-const rightPanel = {
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column',
-    background: '#0a0a0a'
-};
-
-const chatHeader = {
-    padding: window.innerWidth <= 768 ? '12px 15px' : '15px 20px',
-    borderBottom: '1px solid #222',
-    background: '#050505'
-};
-
-const chatHeaderName = {
-    margin: 0,
-    fontSize: window.innerWidth <= 768 ? '13px' : '14px',
-    fontWeight: 'bold',
-    color: '#fff'
-};
-
-const chatHeaderStatus = {
-    margin: 0,
-    fontSize: '11px',
-    color: 'rgba(255,255,255,0.4)',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '5px',
-    marginTop: '3px'
-};
-
-const messagesContainer = {
-    flex: 1,
-    overflowY: 'auto',
-    padding: window.innerWidth <= 768 ? '15px' : '20px',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '10px'
-};
-
-const centerText = {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: '100%',
-    color: 'rgba(255,255,255,0.3)',
-    fontSize: window.innerWidth <= 768 ? '13px' : '14px',
-    padding: '20px',
-    textAlign: 'center'
-};
-
-const emptyState = {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: '100%',
-    color: 'rgba(255,255,255,0.3)'
-};
-
-const messageBubble = {
-    maxWidth: window.innerWidth <= 768 ? '85%' : '70%',
-    padding: window.innerWidth <= 768 ? '8px 12px' : '10px 15px',
-    borderRadius: '12px',
-    marginBottom: '5px'
-};
-
-const messageSender = {
-    margin: 0,
-    fontSize: '10px',
-    fontWeight: 'bold',
-    marginBottom: '5px',
-    opacity: 0.7
-};
-
-const messageText = {
-    margin: 0,
-    fontSize: window.innerWidth <= 768 ? '12px' : '13px',
-    lineHeight: '1.4',
-    wordWrap: 'break-word'
-};
-
-const messageTime = {
-    margin: 0,
-    fontSize: '9px',
-    marginTop: '5px'
-};
-
-const inputContainer = {
-    padding: window.innerWidth <= 768 ? '15px' : '20px',
-    borderTop: '1px solid #222',
-    display: 'flex',
-    gap: '10px',
-    background: '#050505'
-};
-
-const messageInputStyle = {
-    flex: 1,
-    background: '#111',
-    border: '1px solid #222',
-    borderRadius: '8px',
-    padding: window.innerWidth <= 768 ? '10px 12px' : '12px 15px',
-    color: '#fff',
-    fontSize: window.innerWidth <= 768 ? '12px' : '13px',
-    outline: 'none'
-};
-
-const sendButton = {
-    background: 'var(--arc-yellow)',
-    border: 'none',
-    borderRadius: '8px',
-    padding: window.innerWidth <= 768 ? '10px 15px' : '12px 20px',
-    color: '#000',
-    cursor: 'pointer',
-    transition: 'all 0.2s',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center'
+// Function to generate styles based on current state
+const getStyles = (isMobile, isMobileMenuOpen) => {
+    return {
+        overlayBackdrop: {
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            background: 'rgba(0, 0, 0, 0.85)',
+            backdropFilter: 'blur(8px)',
+            zIndex: 9999,
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: isMobile ? '0' : '10px' // Remove padding on mobile for full screen
+        },
+        chatContainer: {
+            width: '100%',
+            maxWidth: isMobile ? '100%' : '1100px',
+            height: isMobile ? '100%' : '700px',
+            background: '#0a0a0a',
+            border: isMobile ? 'none' : '1px solid #222', // Remove border on mobile
+            borderRadius: isMobile ? '0' : '12px', // Remove radius on mobile
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)'
+        },
+        headerStyle: {
+            padding: isMobile ? '15px 15px' : '20px 25px',
+            borderBottom: '1px solid #222',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            background: '#050505',
+            paddingTop: isMobile ? '45px' : '20px' // Add top padding for mobile (status bar area)
+        },
+        headerTitle: {
+            fontSize: isMobile ? '14px' : '16px',
+            fontWeight: 'bold',
+            color: '#fff',
+            letterSpacing: '0.5px'
+        },
+        iconButton: {
+            cursor: 'pointer',
+            color: 'rgba(255,255,255,0.5)',
+            transition: 'color 0.2s'
+        },
+        mainContent: {
+            flex: 1,
+            display: 'flex',
+            overflow: 'hidden',
+            position: 'relative'
+        },
+        leftPanel: {
+            width: isMobile ? '280px' : '320px',
+            borderRight: '1px solid #222',
+            display: 'flex',
+            flexDirection: 'column',
+            background: '#050505',
+            position: isMobile ? 'absolute' : 'relative',
+            height: '100%',
+            zIndex: 10,
+            transition: 'transform 0.3s ease',
+            transform: !isMobile ? 'none' : (isMobileMenuOpen ? 'translateX(0)' : 'translateX(-100%)'),
+            boxShadow: isMobile && isMobileMenuOpen ? '5px 0 15px rgba(0,0,0,0.5)' : 'none'
+        },
+        searchContainer: {
+            padding: '15px',
+            borderBottom: '1px solid #222',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            background: '#0a0a0a'
+        },
+        searchInput: {
+            flex: 1,
+            background: 'transparent',
+            border: 'none',
+            color: '#fff',
+            fontSize: '13px',
+            outline: 'none'
+        },
+        userListContainer: {
+            flex: 1,
+            overflowY: 'auto',
+            padding: '10px'
+        },
+        userItem: {
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            padding: '12px',
+            marginBottom: '5px',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            transition: 'all 0.2s'
+        },
+        userAvatar: {
+            width: '40px',
+            height: '40px',
+            minWidth: '40px',
+            borderRadius: '50%',
+            background: 'linear-gradient(135deg, var(--arc-cyan), var(--arc-yellow))',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '16px',
+            fontWeight: 'bold',
+            color: '#000'
+        },
+        userName: {
+            margin: 0,
+            fontSize: isMobile ? '12px' : '13px',
+            fontWeight: 'bold',
+            color: '#fff',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap'
+        },
+        userStatus: {
+            margin: 0,
+            fontSize: '11px',
+            color: 'rgba(255,255,255,0.4)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '5px'
+        },
+        onlineDot: {
+            width: '6px',
+            height: '6px',
+            borderRadius: '50%',
+            background: '#00ff00'
+        },
+        unreadBadge: {
+            minWidth: '20px',
+            height: '20px',
+            borderRadius: '10px',
+            background: 'var(--arc-yellow)',
+            color: '#000',
+            fontSize: '10px',
+            fontWeight: 'bold',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '0 6px'
+        },
+        rightPanel: {
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            background: '#0a0a0a',
+            width: '100%' // Ensure full width
+        },
+        chatHeader: {
+            padding: isMobile ? '12px 15px' : '15px 20px',
+            borderBottom: '1px solid #222',
+            background: '#050505'
+        },
+        chatHeaderName: {
+            margin: 0,
+            fontSize: isMobile ? '13px' : '14px',
+            fontWeight: 'bold',
+            color: '#fff'
+        },
+        chatHeaderStatus: {
+            margin: 0,
+            fontSize: '11px',
+            color: 'rgba(255,255,255,0.4)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '5px',
+            marginTop: '3px'
+        },
+        messagesContainer: {
+            flex: 1,
+            overflowY: 'auto',
+            padding: isMobile ? '15px' : '20px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '10px'
+        },
+        centerText: {
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            height: '100%',
+            color: 'rgba(255,255,255,0.3)',
+            fontSize: isMobile ? '13px' : '14px',
+            padding: '20px',
+            textAlign: 'center'
+        },
+        emptyState: {
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            height: '100%',
+            color: 'rgba(255,255,255,0.3)'
+        },
+        messageBubble: {
+            maxWidth: isMobile ? '85%' : '70%',
+            padding: isMobile ? '8px 12px' : '10px 15px',
+            borderRadius: '12px',
+            marginBottom: '5px'
+        },
+        messageSender: {
+            margin: 0,
+            fontSize: '10px',
+            fontWeight: 'bold',
+            marginBottom: '5px',
+            opacity: 0.7
+        },
+        messageText: {
+            margin: 0,
+            fontSize: isMobile ? '12px' : '13px',
+            lineHeight: '1.4',
+            wordWrap: 'break-word'
+        },
+        messageTime: {
+            margin: 0,
+            fontSize: '9px',
+            marginTop: '5px'
+        },
+        inputContainer: {
+            padding: isMobile ? '12px' : '20px',
+            borderTop: '1px solid #222',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            background: '#050505',
+            position: 'relative',
+            zIndex: 20,
+            paddingBottom: isMobile ? '20px' : '20px' // Add padding for mobile bottom safe area if needed
+        },
+        messageInputStyle: {
+            flex: 1,
+            background: '#1a1a1a',
+            border: '1px solid #333',
+            borderRadius: '25px',
+            padding: isMobile ? '12px 16px' : '14px 20px',
+            color: '#fff',
+            fontSize: isMobile ? '14px' : '14px',
+            outline: 'none',
+            transition: 'border-color 0.2s',
+            boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.2)'
+        },
+        sendButton: {
+            background: 'var(--arc-yellow)',
+            border: 'none',
+            borderRadius: '50%',
+            width: isMobile ? '40px' : '48px',
+            height: isMobile ? '40px' : '48px',
+            color: '#000',
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+            boxShadow: '0 4px 12px rgba(255, 200, 0, 0.2)'
+        }
+    };
 };
 
 export default ChatOverlay;

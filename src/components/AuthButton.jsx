@@ -2,8 +2,10 @@ import React from 'react';
 import { LogIn, LogOut, User } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import ArcButton from './ArcButton';
+import { useLanguage } from '../lib/LanguageContext';
 
 const AuthButton = ({ user }) => {
+    const { t } = useLanguage();
     const handleLogin = async () => {
         try {
             const { error } = await supabase.auth.signInWithOAuth({
@@ -38,7 +40,7 @@ const AuthButton = ({ user }) => {
 
     return (
         <ArcButton color="cyan" onClick={handleLogin}>
-            <LogIn size={18} /> LOGIN
+            <LogIn size={18} /> {t('LOGIN')}
         </ArcButton>
     );
 };

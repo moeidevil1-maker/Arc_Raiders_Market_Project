@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { useLanguage } from '../lib/LanguageContext';
 import {
     Shield,
     Users,
@@ -22,6 +23,7 @@ import ArcButton from './ArcButton';
 import { AnimatePresence, motion } from 'framer-motion';
 
 const AdminDashboard = ({ role: currentUserRole, onClose, onLoginAs }) => {
+    const { t } = useLanguage();
     const [activeTab, setActiveTab] = useState('dashboard');
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -65,7 +67,7 @@ const AdminDashboard = ({ role: currentUserRole, onClose, onLoginAs }) => {
         try {
             const targetUser = users.find(u => u.id === userId);
             if (targetUser?.role?.toLowerCase() === 'owner') {
-                alert('Owner role cannot be modified.');
+                alert(t('OWNER_NO_MODIFY'));
                 return;
             }
             const { error } = await supabase
@@ -92,9 +94,9 @@ const AdminDashboard = ({ role: currentUserRole, onClose, onLoginAs }) => {
     const DashboardView = () => (
         <div style={{ ...contentPadding, padding: isMobile ? '20px' : '30px' }}>
             <div style={{ ...headerSection, flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'flex-start' : 'center', gap: isMobile ? '10px' : '0' }}>
-                <h2 style={{ ...viewTitle, fontSize: isMobile ? '20px' : '24px' }}>SYSTEM DASHBOARD</h2>
+                <h2 style={{ ...viewTitle, fontSize: isMobile ? '20px' : '24px' }}>{t('SYSTEM_DASHBOARD')}</h2>
                 <div style={badgeRow}>
-                    <span style={onlineStatus}>LIVE STATUS</span>
+                    <span style={onlineStatus}>{t('LIVE_STATUS')}</span>
                     <span style={versionBadge}>V1.2.0-ARC</span>
                 </div>
             </div>
@@ -103,28 +105,28 @@ const AdminDashboard = ({ role: currentUserRole, onClose, onLoginAs }) => {
                 <div style={metricCard}>
                     <Users size={20} color="var(--arc-cyan)" />
                     <div>
-                        <p style={metricLabel}>TOTAL PLAYERS</p>
+                        <p style={metricLabel}>{t('TOTAL_PLAYERS')}</p>
                         <p style={metricValue}>{users.length}</p>
                     </div>
                 </div>
                 <div style={metricCard}>
                     <Zap size={20} color="var(--arc-yellow)" />
                     <div>
-                        <p style={metricLabel}>ACTIVE SESSIONS</p>
+                        <p style={metricLabel}>{t('ACTIVE_SESSIONS')}</p>
                         <p style={metricValue}>12</p>
                     </div>
                 </div>
                 <div style={metricCard}>
                     <Activity size={20} color="#00ff00" />
                     <div>
-                        <p style={metricLabel}>SYSTEM LOAD</p>
+                        <p style={metricLabel}>{t('SYSTEM_LOAD')}</p>
                         <p style={metricValue}>1.2%</p>
                     </div>
                 </div>
                 <div style={metricCard}>
                     <Database size={20} color="#ff00ff" />
                     <div>
-                        <p style={metricLabel}>DB LATENCY</p>
+                        <p style={metricLabel}>{t('DB_LATENCY')}</p>
                         <p style={metricValue}>24ms</p>
                     </div>
                 </div>
@@ -132,17 +134,17 @@ const AdminDashboard = ({ role: currentUserRole, onClose, onLoginAs }) => {
 
             <div style={mainContentArea}>
                 <div style={performanceCard}>
-                    <h3 style={cardTitle}>Performance Metrics</h3>
+                    <h3 style={cardTitle}>{t('PERFORMANCE_METRICS')}</h3>
                     <div style={progressBarContainer}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
-                            <span>PAGE LOAD TIME</span>
+                            <span>{t('PAGE_LOAD_TIME')}</span>
                             <span style={{ color: '#00ff00' }}>482ms</span>
                         </div>
                         <div style={progressBarBg}><div style={{ ...progressBarFill, width: '35%', background: '#00ff00' }}></div></div>
                     </div>
                     <div style={progressBarContainer}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
-                            <span>API RESPONSE</span>
+                            <span>{t('API_RESPONSE')}</span>
                             <span style={{ color: 'var(--arc-yellow)' }}>1.2s</span>
                         </div>
                         <div style={progressBarBg}><div style={{ ...progressBarFill, width: '75%', background: 'var(--arc-yellow)' }}></div></div>
@@ -155,12 +157,12 @@ const AdminDashboard = ({ role: currentUserRole, onClose, onLoginAs }) => {
     const UserManagementView = () => (
         <div style={{ ...contentPadding, padding: isMobile ? '20px' : '30px' }}>
             <div style={{ ...headerSection, flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'flex-start' : 'center', gap: isMobile ? '15px' : '0' }}>
-                <h2 style={{ ...viewTitle, fontSize: isMobile ? '20px' : '24px' }}>USER MANAGEMENT</h2>
+                <h2 style={{ ...viewTitle, fontSize: isMobile ? '20px' : '24px' }}>{t('USER_MANAGEMENT')}</h2>
                 <div style={{ ...searchBarContainer, width: isMobile ? '100%' : 'auto' }}>
                     <Search size={18} color="rgba(255,255,255,0.4)" />
                     <input
                         type="text"
-                        placeholder="Search by email..."
+                        placeholder={t('SEARCH_EMAIL')}
                         style={{ ...searchInputStyle, width: isMobile ? '100%' : '200px' }}
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
@@ -176,16 +178,16 @@ const AdminDashboard = ({ role: currentUserRole, onClose, onLoginAs }) => {
 
             <div style={tableWrapper}>
                 {loading ? (
-                    <div style={centeredStyle}>INITIALIZING ENCRYPTED DATA...</div>
+                    <div style={centeredStyle}>{t('INIT_ENCRYPTED')}</div>
                 ) : (
                     <div style={{ overflowX: 'auto' }}>
                         <table style={{ ...tableStyle, minWidth: '600px' }}>
                             <thead>
                                 <tr>
-                                    <th style={thStyle}>EMAIL IDENTITY</th>
-                                    <th style={thStyle}>CREDITS</th>
-                                    <th style={thStyle}>CLEARANCE</th>
-                                    <th style={thStyle}>ACTIONS</th>
+                                    <th style={thStyle}>{t('EMAIL_IDENTITY')}</th>
+                                    <th style={thStyle}>{t('CREDITS')}</th>
+                                    <th style={thStyle}>{t('CLEARANCE')}</th>
+                                    <th style={thStyle}>{t('ACTIONS')}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -215,18 +217,18 @@ const AdminDashboard = ({ role: currentUserRole, onClose, onLoginAs }) => {
                                                             onClick={() => toggleRole(user.id, user.role)}
                                                             disabled={isUpdating === user.id}
                                                         >
-                                                            {isUpdating === user.id ? '...' : (user.role?.toLowerCase() === 'admin' ? 'DEMOTE' : 'MAKE ADMIN')}
+                                                            {isUpdating === user.id ? '...' : (user.role?.toLowerCase() === 'admin' ? t('DEMOTE') : t('MAKE_ADMIN'))}
                                                         </ArcButton>
                                                         <ArcButton
                                                             color="blue"
                                                             style={{ padding: '4px 0', fontSize: '10px', width: '85px', justifyContent: 'center' }}
                                                             onClick={() => onLoginAs(user)}
                                                         >
-                                                            LOGIN AS
+                                                            {t('LOGIN_AS')}
                                                         </ArcButton>
                                                     </div>
                                                 ) : (
-                                                    <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '10px' }}><Lock size={12} style={{ marginRight: '4px' }} /> LOCKED</span>
+                                                    <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '10px' }}><Lock size={12} style={{ marginRight: '4px' }} /> {t('LOCKED')}</span>
                                                 )
                                             )}
                                         </td>
@@ -241,11 +243,11 @@ const AdminDashboard = ({ role: currentUserRole, onClose, onLoginAs }) => {
     );
 
     const menuItems = [
-        { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18} /> },
-        { id: 'users', label: 'User Management', icon: <Users size={18} /> },
-        { id: 'health', label: 'System Health', icon: <Activity size={18} /> },
-        { id: 'logs', label: 'Access Logs', icon: <FileText size={18} /> },
-        { id: 'settings', label: 'General Settings', icon: <Settings size={18} /> },
+        { id: 'dashboard', label: t('SYSTEM_DASHBOARD'), icon: <LayoutDashboard size={18} /> },
+        { id: 'users', label: t('USER_MANAGEMENT'), icon: <Users size={18} /> },
+        { id: 'health', label: t('HEALTH'), icon: <Activity size={18} /> },
+        { id: 'logs', label: t('LOGS'), icon: <FileText size={18} /> },
+        { id: 'settings', label: t('SETTINGS'), icon: <Settings size={18} /> },
     ];
 
     return (
@@ -290,7 +292,7 @@ const AdminDashboard = ({ role: currentUserRole, onClose, onLoginAs }) => {
                 >
                     <div style={brandingArea}>
                         <Shield className="text-yellow" size={24} />
-                        <span style={brandingText}>SYSTEM CONTROL</span>
+                        <span style={brandingText}>{t('SYSTEM_CONTROL')}</span>
                         {isMobile && (
                             <div style={{ marginLeft: 'auto', cursor: 'pointer' }} onClick={() => setIsSidebarOpen(false)}>
                                 <X size={20} color="rgba(255,255,255,0.5)" />
@@ -324,12 +326,12 @@ const AdminDashboard = ({ role: currentUserRole, onClose, onLoginAs }) => {
                         <div style={profileMiniCard}>
                             <div style={avatarCircle}>O</div>
                             <div style={{ overflow: 'hidden' }}>
-                                <p style={miniName}>OWNER MODE</p>
+                                <p style={miniName}>{t('GOD_MODE')}</p>
                                 <p style={miniEmail}>{currentUserRole?.toUpperCase()}</p>
                             </div>
                         </div>
                         <div style={backToSiteBtn} onClick={onClose}>
-                            <LogOut size={14} /> BACK TO SITE
+                            <LogOut size={14} /> {t('BACK_TO_SITE')}
                         </div>
                     </div>
                 </motion.div>
@@ -357,7 +359,7 @@ const AdminDashboard = ({ role: currentUserRole, onClose, onLoginAs }) => {
                         {(activeTab !== 'dashboard' && activeTab !== 'users') && (
                             <div style={centeredStyle}>
                                 <Database size={48} style={{ marginBottom: '20px', opacity: 0.2 }} />
-                                <p>MODULE OFFLINE OR UNDER DEVELOPMENT</p>
+                                <p>{t('NO_DATA')}</p>
                                 <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.3)' }}>REF: {activeTab.toUpperCase()}_v1.0</p>
                             </div>
                         )}

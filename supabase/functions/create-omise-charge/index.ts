@@ -16,8 +16,8 @@ serve(async (req) => {
             throw new Error('OMISE_SECRET_KEY is missing')
         }
 
-        const { amount, userId, email, packageLabel } = await req.json()
-        console.log(`Processing charge for user ${userId} (${email})`)
+        const { amount, userId, email, packageLabel, orderId } = await req.json()
+        console.log(`Processing charge for user ${userId} (${email}) - Order: ${orderId}`)
 
         // 1. Create Source (PromptPay) - Use JSON
         const sourceResponse = await fetch('https://api.omise.co/sources', {
@@ -48,7 +48,7 @@ serve(async (req) => {
                 currency: 'thb',
                 source: source.id,
                 description: `Top-up: ${packageLabel} for ${email}`,
-                metadata: { userId, amount }
+                metadata: { userId, amount, orderId, order_no: orderId } // Send both for compatibility
             }),
         })
 
