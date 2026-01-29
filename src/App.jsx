@@ -10,6 +10,7 @@ import AdminDashboard from './components/AdminDashboard';
 import ChatOverlay from './components/ChatOverlay';
 import Traders from './components/Traders';
 import MissionBoard from './components/MissionBoard';
+import CommunityBoard from './components/CommunityBoard';
 import OnlineTicker from './components/OnlineTicker';
 import HeroVideo from './components/HeroVideo';
 import logoImg from './assets/logo.png';
@@ -31,7 +32,7 @@ function App() {
   const [originalUserData, setOriginalUserData] = useState(null); // To store admin's own data
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
-  const [currentView, setCurrentView] = useState('home'); // 'home' or 'traders'
+  const [currentView, setCurrentView] = useState('home'); // 'home', 'traders', 'community'
   const [isGameInfoOpen, setIsGameInfoOpen] = useState(false);
   const [chatTrigger, setChatTrigger] = useState({ user: null, message: '' });
 
@@ -280,7 +281,7 @@ function App() {
             )}
 
             <a href="#" onClick={() => { setCurrentView('home'); setIsMobileMenuOpen(false); }} style={mobileNavLink}>{t('HOME')}</a>
-            <a href="https://www.facebook.com/people/ARC-Raiders-Thailand/61582500973596/" target="_blank" rel="noreferrer" onClick={() => setIsMobileMenuOpen(false)} style={mobileNavLink}>{t('COMMUNITY')}</a>
+            <a href="#" onClick={() => { setCurrentView('community'); setIsMobileMenuOpen(false); }} style={mobileNavLink}>{t('COMMUNITY')}</a>
             <a href="https://arcraiders.com/news" target="_blank" rel="noreferrer" onClick={() => setIsMobileMenuOpen(false)} style={mobileNavLink}>{t('NEWS')}</a>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <span style={{ ...mobileNavLink, color: 'rgba(255,255,255,0.4)', fontSize: '14px' }}>{t('GAME_INFO')}</span>
@@ -358,7 +359,7 @@ function App() {
           {/* Desktop Nav - hidden on mobile */}
           <nav className="header-center hide-mobile" style={navStyle}>
             <a href="#" className="hover-cyan" onClick={() => setCurrentView('home')}>{t('HOME')}</a>
-            <a href="https://www.facebook.com/people/ARC-Raiders-Thailand/61582500973596/" target="_blank" rel="noreferrer" className="hover-cyan">{t('COMMUNITY')}</a>
+            <a href="#" className="hover-cyan" onClick={() => setCurrentView('community')}>{t('COMMUNITY')}</a>
             <a href="https://arcraiders.com/news" target="_blank" rel="noreferrer" className="hover-cyan">{t('NEWS')}</a>
 
             <div
@@ -571,7 +572,7 @@ function App() {
                     <ArcButton color="green" onClick={() => scrollToSection('mission-board')} style={{ width: isMobile ? '100%' : 'auto' }}>
                       <Briefcase size={20} style={{ marginRight: '8px' }} /> {t('MISSION_BOARD')}
                     </ArcButton>
-                    <ArcButton color="red" onClick={() => window.open('https://www.facebook.com/people/ARC-Raiders-Thailand/61582500973596/', '_blank')} style={{ width: isMobile ? '100%' : 'auto' }}>
+                    <ArcButton color="red" onClick={() => setCurrentView('community')} style={{ width: isMobile ? '100%' : 'auto' }}>
                       <Users size={20} /> {t('COMMUNITY')}
                     </ArcButton>
                   </div>
@@ -630,7 +631,7 @@ function App() {
                 </div>
               </section>
             </motion.div>
-          ) : (
+          ) : currentView === 'traders' ? (
             <motion.div
               key="traders"
               initial={{ opacity: 0, x: 20 }}
@@ -639,6 +640,16 @@ function App() {
               transition={{ duration: 0.5 }}
             >
               <Traders />
+            </motion.div>
+          ) : (
+            <motion.div
+              key="community"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.5 }}
+            >
+              <CommunityBoard currentUser={impersonatedUser || user} />
             </motion.div>
           )}
         </AnimatePresence>
