@@ -245,6 +245,21 @@ function App() {
               gap: '20px'
             }}
           >
+            {/* Close Button specific for Drawer */}
+            <div
+              onClick={() => setIsMobileMenuOpen(false)}
+              style={{
+                position: 'absolute',
+                top: '25px',
+                right: '25px',
+                cursor: 'pointer',
+                color: 'rgba(255,255,255,0.7)',
+                padding: '5px'
+              }}
+            >
+              <X size={28} />
+            </div>
+
             {/* Mobile Credits Display */}
             {user && (
               <div style={{
@@ -804,7 +819,7 @@ const videoOverlayStyle = {
   left: 0,
   width: '100%',
   height: '100%',
-  background: 'linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.4) 50%, rgba(0,0,0,0.9) 100%)', // Made darker
+  background: 'linear-gradient(to bottom, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.7) 50%, rgba(0,0,0,0.9) 100%)', // Made darker
   zIndex: 1,
 };
 

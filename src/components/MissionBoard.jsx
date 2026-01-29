@@ -229,27 +229,14 @@ const MissionBoard = ({ currentUser, onContact }) => {
                     <h1 style={{ fontSize: '36px', fontWeight: '900', marginBottom: '10px' }}>MISSION BOARD</h1>
                     <p style={{ color: 'rgba(255,255,255,0.5)' }}>ศูนย์รวมบริการ รับจ้าง ฟาร์มของ และประกาศหาไอเทมสำหรับ Raiders</p>
                 </div>
-                <ArcButton
-                    color={currentUser ? "yellow" : "cyan"}
-                    onClick={async () => {
-                        if (!currentUser) {
-                            await supabase.auth.signInWithOAuth({
-                                provider: 'google',
-                                options: {
-                                    redirectTo: window.location.origin
-                                }
-                            });
-                            return;
-                        }
-                        setIsCreateModalOpen(true);
-                    }}
-                >
-                    {currentUser ? (
-                        <><Plus size={18} style={{ marginRight: '8px' }} /> แปะประกาศใหม่</>
-                    ) : (
-                        <><LogIn size={18} style={{ marginRight: '8px' }} /> เข้าสู่ระบบเพื่อแปะประกาศ</>
-                    )}
-                </ArcButton>
+                {currentUser && (
+                    <ArcButton
+                        color="yellow"
+                        onClick={() => setIsCreateModalOpen(true)}
+                    >
+                        <Plus size={18} style={{ marginRight: '8px' }} /> แปะประกาศใหม่
+                    </ArcButton>
+                )}
             </div>
 
             {/* Filters */}

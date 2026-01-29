@@ -39,9 +39,33 @@ const AuthButton = ({ user }) => {
     }
 
     return (
-        <ArcButton color="cyan" onClick={handleLogin}>
-            <LogIn size={18} /> {t('LOGIN')}
-        </ArcButton>
+        <div
+            onClick={handleLogin}
+            style={{
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                color: 'rgba(255, 255, 255, 0.7)',
+                fontSize: '13px',
+                fontWeight: '600',
+                padding: '8px 16px',
+                borderRadius: '6px',
+                transition: 'all 0.2s',
+                border: '1px solid transparent'
+            }}
+            onMouseEnter={(e) => {
+                e.currentTarget.style.color = '#fff';
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+            }}
+            onMouseLeave={(e) => {
+                e.currentTarget.style.color = 'rgba(255, 255, 255, 0.7)';
+                e.currentTarget.style.background = 'transparent';
+            }}
+        >
+            <LogIn size={16} />
+            <span>{t('LOGIN')}</span>
+        </div>
     );
 };
 
