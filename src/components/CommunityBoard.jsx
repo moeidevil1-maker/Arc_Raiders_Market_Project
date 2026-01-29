@@ -14,36 +14,7 @@ import {
 
 const CommunityBoard = ({ currentUser }) => {
     // Mock Data for POC
-    const [posts, setPosts] = useState([
-        {
-            id: 1,
-            user: {
-                name: 'sunsuning',
-                avatar: null, // text fallback
-                time: '20/01/2026 17:16'
-            },
-            content: 'ตามหาทีมงานลงดัน Zone 4 ครับ ขอคนมีไมค์ 🎤',
-            image: null,
-            likes: 3,
-            comments: [
-                { id: 101, user: 'RaiderOne', avatar: null, content: 'สนใจครับ Add มาเลย', time: '10 mins ago' }
-            ],
-            isLiked: true
-        },
-        {
-            id: 2,
-            user: {
-                name: 'MOMMOEI',
-                avatar: 'https://cdn.discordapp.com/avatars/463943670691233792/0b1c0a0c4f8d5f3b7b6e9c9f2a9d8d6f.png',
-                time: '29/01/2026 10:00'
-            },
-            content: 'วันนี้ได้ของดีมาเพียบ! 🤑',
-            image: 'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/1808500/ss_86884175373676831006845353591461427137f8.1920x1080.jpg?t=1701911666',
-            likes: 15,
-            comments: [],
-            isLiked: false
-        }
-    ]);
+    const [posts, setPosts] = useState([]);
 
     // States
     const [newPostContent, setNewPostContent] = useState('');
