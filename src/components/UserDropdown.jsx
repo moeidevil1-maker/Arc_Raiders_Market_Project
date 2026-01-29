@@ -22,12 +22,26 @@ const UserDropdown = ({ user, role, isOpen, onClose, onLogout, onOpenAdmin, onOp
                     </div>
 
                     <div style={menuStyle}>
-                        {(role?.toLowerCase() === 'admin' || role?.toLowerCase() === 'owner') && (
-                            <div onClick={onOpenAdmin} style={menuItemStyle} className="dropdown-item">
-                                <ExternalLink size={16} />
-                                <span>{t('SYSTEM_CONTROL')}</span>
-                            </div>
-                        )}
+                        {(() => {
+                            const currentRole = role?.toString().trim().toLowerCase();
+                            // Robust check for admin or owner
+                            const isAdminOrOwner = ['admin', 'owner'].includes(currentRole);
+
+                            // Debugging log to console
+                            console.log('--- UserDropdown Debug ---', {
+                                rawRole: role,
+                                processedRole: currentRole,
+                                isAdminOrOwner,
+                                userEmail: user?.email
+                            });
+
+                            return isAdminOrOwner && (
+                                <div onClick={onOpenAdmin} style={menuItemStyle} className="dropdown-item">
+                                    <ExternalLink size={16} />
+                                    <span>{t('SYSTEM_CONTROL')}</span>
+                                </div>
+                            );
+                        })()}
 
                         <div onClick={onOpenTopUp} style={menuItemStyle} className="dropdown-item">
                             <Zap size={16} className="text-yellow" />

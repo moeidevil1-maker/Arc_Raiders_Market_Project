@@ -354,9 +354,10 @@ const AdminDashboard = ({ role: currentUserRole, onClose, onLoginAs }) => {
                     </div>
 
                     <div style={scrollContent}>
-                        {activeTab === 'dashboard' && <DashboardView />}
                         {activeTab === 'users' && <UserManagementView />}
-                        {(activeTab !== 'dashboard' && activeTab !== 'users') && (
+                        {activeTab === 'settings' && <SettingsView />}
+                        {activeTab === 'logs' && <AccessLogsView />}
+                        {(activeTab !== 'dashboard' && activeTab !== 'users' && activeTab !== 'settings' && activeTab !== 'logs') && (
                             <div style={centeredStyle}>
                                 <Database size={48} style={{ marginBottom: '20px', opacity: 0.2 }} />
                                 <p>{t('NO_DATA')}</p>
@@ -369,6 +370,385 @@ const AdminDashboard = ({ role: currentUserRole, onClose, onLoginAs }) => {
         </div>
     );
 };
+
+// --- ACCESS LOGS VIEW ---
+const AccessLogsView = () => {
+    const { t } = useLanguage();
+    const [searchTerm, setSearchTerm] = useState('');
+    const [filterLevel, setFilterLevel] = useState('ALL'); // ALL, INFO, WARN, ERROR
+
+    // Mock Data for Logs
+    const MOCK_LOGS = [
+        { id: 'L-1024', time: '10:42:15', date: '2026-01-29', level: 'INFO', user: 'admin@arc.th', action: 'SYSTEM_LOGIN', details: 'Successful login from IP 192.168.1.1' },
+        { id: 'L-1023', time: '10:40:00', date: '2026-01-29', level: 'WARN', user: 'SYSTEM', action: 'HIGH_LATENCY', details: 'Database response time > 500ms' },
+        { id: 'L-1022', time: '10:35:22', date: '2026-01-29', level: 'INFO', user: 'player1@gmail.com', action: 'USER_REGISTER', details: 'New account created' },
+        { id: 'L-1021', time: '10:15:10', date: '2026-01-29', level: 'ERROR', user: 'unknown', action: 'AUTH_FAILURE', details: 'Failed login attempt (3x) from IP 45.2.1.99' },
+        { id: 'L-1020', time: '09:55:01', date: '2026-01-29', level: 'INFO', user: 'SYSTEM', action: 'CRON_JOB', details: 'Daily backup completed successfully' },
+        { id: 'L-1019', time: '09:30:45', date: '2026-01-29', level: 'CRITICAL', user: 'SYSTEM', action: 'ECONOMY_ALERT', details: 'Abnormal credit distribution detected in Sector 4' },
+        { id: 'L-1018', time: '09:00:00', date: '2026-01-29', level: 'INFO', user: 'moderator@arc.th', action: 'ROLE_UPDATE', details: 'Changed role for user ID #8821 to USER' },
+        { id: 'L-1017', time: '08:45:12', date: '2026-01-29', level: 'INFO', user: 'player2@hotmail.com', action: 'TRANSACTION', details: 'Purchased mock_item_22 for 500 credits' },
+    ];
+
+    const getLevelColor = (level) => {
+        switch (level) {
+            case 'INFO': return 'var(--arc-cyan)';
+            case 'WARN': return 'var(--arc-yellow)';
+            case 'ERROR': return '#ff4444';
+            case 'CRITICAL': return '#ff00ff'; // Neon pink for critical
+            default: return '#fff';
+        }
+    };
+
+    const filteredLogs = MOCK_LOGS.filter(log => {
+        const matchesSearch =
+            log.action.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            log.user.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            log.details.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesLevel = filterLevel === 'ALL' || log.level === filterLevel;
+        return matchesSearch && matchesLevel;
+    });
+
+    return (
+        <div style={{ padding: '30px', height: '100%', display: 'flex', flexDirection: 'column' }}>
+            {/* Header & Controls */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '15px' }}>
+                <h2 style={{ fontSize: '24px', fontWeight: '900', letterSpacing: '2px', color: '#fff', margin: 0 }}>
+                    {t('ACCESS_LOGS')} // SECURITY AUDIT
+                </h2>
+
+                <div style={{ display: 'flex', gap: '10px' }}>
+                    <select
+                        style={{
+                            background: '#111',
+                            color: '#fff',
+                            border: '1px solid #333',
+                            padding: '8px 12px',
+                            borderRadius: '4px',
+                            outline: 'none',
+                            fontSize: '12px',
+                            cursor: 'pointer'
+                        }}
+                        value={filterLevel}
+                        onChange={(e) => setFilterLevel(e.target.value)}
+                    >
+                        <option value="ALL">ALL LEVELS</option>
+                        <option value="INFO">INFO</option>
+                        <option value="WARN">WARNING</option>
+                        <option value="ERROR">ERROR/CRITICAL</option>
+                    </select>
+
+                    <div style={{ position: 'relative' }}>
+                        <Search size={14} color="rgba(255,255,255,0.4)" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)' }} />
+                        <input
+                            type="text"
+                            placeholder="Search logs..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            style={{
+                                background: '#111',
+                                border: '1px solid #333',
+                                borderRadius: '4px',
+                                padding: '8px 10px 8px 30px',
+                                color: '#fff',
+                                fontSize: '12px',
+                                outline: 'none',
+                                width: '200px'
+                            }}
+                        />
+                    </div>
+                </div>
+            </div>
+
+            {/* Logs Terminal/Table */}
+            <div style={{
+                flex: 1,
+                background: '#080808',
+                border: '1px solid #222',
+                borderRadius: '8px',
+                overflowY: 'auto',
+                fontFamily: 'monospace',
+                fontSize: '12px',
+                padding: '10px'
+            }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead style={{ position: 'sticky', top: 0, background: '#080808', zIndex: 1 }}>
+                        <tr style={{ color: 'rgba(255,255,255,0.3)', borderBottom: '1px solid #222', textAlign: 'left' }}>
+                            <th style={{ padding: '10px' }}>TIMESTAMP</th>
+                            <th style={{ padding: '10px' }}>LEVEL</th>
+                            <th style={{ padding: '10px' }}>SOURCE/USER</th>
+                            <th style={{ padding: '10px' }}>EVENT</th>
+                            <th style={{ padding: '10px' }}>DETAILS</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {filteredLogs.map(log => (
+                            <tr key={log.id} style={{ borderBottom: '1px solid #111', transition: 'background 0.2s' }} className="log-row">
+                                <td style={{ padding: '10px', color: 'rgba(255,255,255,0.5)' }}>
+                                    {log.date} <span style={{ color: '#fff' }}>{log.time}</span>
+                                </td>
+                                <td style={{ padding: '10px' }}>
+                                    <span style={{
+                                        color: getLevelColor(log.level),
+                                        border: `1px solid ${getLevelColor(log.level)}`,
+                                        padding: '2px 6px',
+                                        borderRadius: '2px',
+                                        fontSize: '10px',
+                                        fontWeight: 'bold'
+                                    }}>
+                                        {log.level}
+                                    </span>
+                                </td>
+                                <td style={{ padding: '10px', color: '#ddd' }}>{log.user}</td>
+                                <td style={{ padding: '10px', color: 'var(--arc-yellow)' }}>{log.action}</td>
+                                <td style={{ padding: '10px', color: 'rgba(255,255,255,0.7)' }}>{log.details}</td>
+                            </tr>
+                        ))}
+                        {filteredLogs.length === 0 && (
+                            <tr>
+                                <td colSpan="5" style={{ padding: '40px', textAlign: 'center', color: 'rgba(255,255,255,0.3)' }}>
+                                    NO ENTRY FOUND
+                                </td>
+                            </tr>
+                        )}
+                    </tbody>
+                </table>
+            </div>
+
+            <style>{`
+                .log-row:hover {
+                    background: rgba(255,255,255,0.03);
+                }
+            `}</style>
+        </div>
+    );
+};
+// --- END ACCESS LOGS VIEW ---
+
+// --- SETTINGS VIEW ---
+const SettingsView = () => {
+    const { t } = useLanguage();
+    const [settings, setSettings] = useState({
+        maintenanceMode: false,
+        allowSignups: true,
+        transactionFee: 5,
+        startingCredits: 1000,
+        announcement: '',
+        discordUrl: 'https://discord.gg/arcraiders',
+        facebookUrl: 'https://facebook.com/arcraiders'
+    });
+    const [isSaving, setIsSaving] = useState(false);
+
+    const handleSave = () => {
+        setIsSaving(true);
+        // Simulate API call
+        setTimeout(() => {
+            setIsSaving(false);
+            alert('CONFIRMATION: System parameters updated successfully.');
+        }, 1500);
+    };
+
+    return (
+        <div style={{ padding: '30px', maxWidth: '800px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
+                <h2 style={{ fontSize: '24px', fontWeight: '900', letterSpacing: '2px', color: '#fff', margin: 0 }}>
+                    {t('SETTINGS')} // SYSTEM PARAMETERS
+                </h2>
+                <ArcButton onClick={handleSave} color="yellow" disabled={isSaving} style={{ minWidth: '120px', justifyContent: 'center' }}>
+                    {isSaving ? 'SAVING...' : 'SAVE CHANGES'}
+                </ArcButton>
+            </div>
+
+            {/* Global System Protocol */}
+            <div style={settingsSectionStyle}>
+                <h3 style={sectionHeaderStyle}>
+                    <Shield size={18} color="var(--arc-cyan)" />
+                    GLOBAL SYSTEM PROTOCOL
+                </h3>
+                <div style={settingRowStyle}>
+                    <div>
+                        <p style={settingLabelStyle}>MAINTENANCE MODE</p>
+                        <p style={settingDescStyle}>Lock system access for non-admin personnel.</p>
+                    </div>
+                    <label style={toggleSwitchStyle}>
+                        <input
+                            type="checkbox"
+                            checked={settings.maintenanceMode}
+                            onChange={e => setSettings({ ...settings, maintenanceMode: e.target.checked })}
+                        />
+                        <span style={sliderStyle}></span>
+                    </label>
+                </div>
+                <div style={settingRowStyle}>
+                    <div>
+                        <p style={settingLabelStyle}>ALLOW NEW REGISTRATIONS</p>
+                        <p style={settingDescStyle}>Open/Close gateway for new operatives.</p>
+                    </div>
+                    <label style={toggleSwitchStyle}>
+                        <input
+                            type="checkbox"
+                            checked={settings.allowSignups}
+                            onChange={e => setSettings({ ...settings, allowSignups: e.target.checked })}
+                        />
+                        <span style={sliderStyle}></span>
+                    </label>
+                </div>
+            </div>
+
+            {/* Economy Parameters */}
+            <div style={settingsSectionStyle}>
+                <h3 style={sectionHeaderStyle}>
+                    <Database size={18} color="var(--arc-yellow)" />
+                    ECONOMY PARAMETERS
+                </h3>
+                <div style={inputGroupStyle}>
+                    <label style={inputLabelStyle}>TRANSACTION FEE (%)</label>
+                    <input
+                        type="number"
+                        value={settings.transactionFee}
+                        onChange={e => setSettings({ ...settings, transactionFee: e.target.value })}
+                        style={inputFieldStyle}
+                    />
+                </div>
+                <div style={inputGroupStyle}>
+                    <label style={inputLabelStyle}>DEFAULT STARTING CREDITS</label>
+                    <input
+                        type="number"
+                        value={settings.startingCredits}
+                        onChange={e => setSettings({ ...settings, startingCredits: e.target.value })}
+                        style={inputFieldStyle}
+                    />
+                </div>
+            </div>
+
+            {/* Communication Matrix */}
+            <div style={settingsSectionStyle}>
+                <h3 style={sectionHeaderStyle}>
+                    <Activity size={18} color="#00ff00" />
+                    COMMUNICATION MATRIX
+                </h3>
+                <div style={inputGroupStyle}>
+                    <label style={inputLabelStyle}>SYSTEM ANNOUNCEMENT (HEADER)</label>
+                    <input
+                        type="text"
+                        placeholder="Enter system-wide message..."
+                        value={settings.announcement}
+                        onChange={e => setSettings({ ...settings, announcement: e.target.value })}
+                        style={inputFieldStyle}
+                    />
+                </div>
+                <div style={inputGroupStyle}>
+                    <label style={inputLabelStyle}>DISCORD UPLINK</label>
+                    <input
+                        type="text"
+                        value={settings.discordUrl}
+                        onChange={e => setSettings({ ...settings, discordUrl: e.target.value })}
+                        style={inputFieldStyle}
+                    />
+                </div>
+            </div>
+
+            {/* CSS Injection for Toggle Switch */}
+            <style>{`
+                input:checked + span {
+                    background-color: var(--arc-yellow);
+                }
+                input:focus + span {
+                    box-shadow: 0 0 1px var(--arc-yellow);
+                }
+                input:checked + span:before {
+                    -webkit-transform: translateX(18px);
+                    -ms-transform: translateX(18px);
+                    transform: translateX(18px);
+                    background-color: #000;
+                }
+                span:before {
+                    position: absolute;
+                    content: "";
+                    height: 16px;
+                    width: 16px;
+                    left: 3px;
+                    bottom: 3px;
+                    background-color: white;
+                    -webkit-transition: .4s;
+                    transition: .4s;
+                    border-radius: 50%;
+                }
+            `}</style>
+        </div>
+    );
+};
+
+// Settings Styles
+const settingsSectionStyle = {
+    background: '#111',
+    border: '1px solid #222',
+    borderRadius: '8px',
+    padding: '20px',
+    marginBottom: '20px'
+};
+
+const sectionHeaderStyle = {
+    fontSize: '14px',
+    fontWeight: 'bold',
+    color: '#fff',
+    margin: '0 0 20px 0',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    borderBottom: '1px solid #222',
+    paddingBottom: '15px',
+    letterSpacing: '1px'
+};
+
+const settingRowStyle = {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '20px'
+};
+
+const settingLabelStyle = { margin: 0, fontSize: '13px', fontWeight: 'bold', color: '#fff' };
+const settingDescStyle = { margin: '4px 0 0 0', fontSize: '11px', color: 'rgba(255,255,255,0.4)' };
+
+const inputGroupStyle = { marginBottom: '15px' };
+const inputLabelStyle = { display: 'block', fontSize: '11px', fontWeight: 'bold', color: 'rgba(255,255,255,0.5)', marginBottom: '8px' };
+const inputFieldStyle = {
+    width: '100%',
+    background: '#0a0a0a',
+    border: '1px solid #333',
+    borderRadius: '4px',
+    padding: '10px',
+    color: '#fff',
+    fontSize: '13px',
+    outline: 'none'
+};
+
+// Toggle Switch CSS-in-JS
+const toggleSwitchStyle = {
+    position: 'relative',
+    display: 'inline-block',
+    width: '40px',
+    height: '22px'
+};
+
+const sliderStyle = {
+    position: 'absolute',
+    cursor: 'pointer',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: '#333',
+    transition: '.4s',
+    borderRadius: '22px'
+};
+// Note: Pseudo-elements for toggle slider (::before) can't be done easily in inline styles without a style tag or emotion/styled-components.
+// Using a simpler simulated toggle approach with border color or just rendering a customized check box for simplicity in inline styles might be tricky,
+// but let's try to inject a small style tag for the toggle interactions solely for this component.
+
+/* Additional Global Styles for this component which need to be injected or handled via classNames */
+
+// --- END SETTINGS VIEW ---
 
 // --- STYLES ---
 const overlayStyle = {

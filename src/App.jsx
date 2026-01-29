@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Facebook, Youtube, MessageSquare, Play, ShoppingCart, Users, ChevronDown, User, Coins, Zap, Menu, X } from 'lucide-react';
+import { Facebook, Youtube, MessageSquare, Play, ShoppingCart, Users, ChevronDown, User, Coins, Zap, Menu, X, Briefcase } from 'lucide-react';
 import ArcButton from './components/ArcButton';
 import UserDropdown from './components/UserDropdown';
 import TransactionHistoryModal from './components/TransactionHistoryModal';
@@ -8,7 +8,10 @@ import CreditTopupModal from './components/CreditTopupModal'; // Import Topup Mo
 import AuthButton from './components/AuthButton';
 import AdminDashboard from './components/AdminDashboard';
 import ChatOverlay from './components/ChatOverlay';
-import heroBg from './assets/hero-bg.png';
+import Traders from './components/Traders';
+import MissionBoard from './components/MissionBoard';
+import OnlineTicker from './components/OnlineTicker';
+import HeroVideo from './components/HeroVideo';
 import logoImg from './assets/logo.png';
 import { supabase } from './lib/supabase';
 import { useLanguage } from './lib/LanguageContext';
@@ -28,6 +31,9 @@ function App() {
   const [originalUserData, setOriginalUserData] = useState(null); // To store admin's own data
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  const [currentView, setCurrentView] = useState('home'); // 'home' or 'traders'
+  const [isGameInfoOpen, setIsGameInfoOpen] = useState(false);
+  const [chatTrigger, setChatTrigger] = useState({ user: null, message: '' });
 
   useEffect(() => {
     const handleResize = () => {
@@ -56,17 +62,57 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (user) {
+    const targetUser = impersonatedUser || user;
+    if (targetUser) {
       const fetchProfile = async () => {
         const { data, error } = await supabase
           .from('profiles')
-          .select('role, credits')
-          .eq('id', user.id)
+          .select('role, credits, email, avatar_url')
+          .eq('id', targetUser.id)
           .single();
 
         if (data) {
+          console.log('--- FETCH PROFILE SUCCESS ---');
+          // Self-healing: Sync Avatar from Auth Metadata to Profile if missing
+          // Only perform this for the actual logged-in user to avoid overwriting during impersonation
+          if (!impersonatedUser && !data.avatar_url && user?.user_metadata?.avatar_url) {
+            console.log('Syncing missing avatar to profile...');
+            const { error: updateError } = await supabase
+              .from('profiles')
+              .update({ avatar_url: user.user_metadata.avatar_url })
+              .eq('id', user.id);
+
+            if (!updateError) {
+              console.log('Avatar synced successfully');
+            }
+          }
+
+          console.log('Target User ID:', targetUser.id);
+          console.log('Profile Data Returned:', data);
+          console.log('Setting Role To:', data.role || 'user');
           setRole(data.role || 'user');
           setCredits(data.credits || 0);
+
+          if (impersonatedUser) {
+            // Check if values actually changed to avoid infinite loop
+            const hasChanged =
+              impersonatedUser.credits !== data.credits ||
+              impersonatedUser.role !== (data.role || 'user');
+
+            if (hasChanged) {
+              console.log('--- UPDATING IMPERSONATED USER STATE ---');
+              setImpersonatedUser({
+                ...impersonatedUser,
+                credits: data.credits || 0,
+                role: data.role || 'user',
+                email: data.email || impersonatedUser.email,
+                user_metadata: {
+                  ...impersonatedUser.user_metadata,
+                  email: data.email || impersonatedUser.email
+                }
+              });
+            }
+          }
         } else if (error) {
           console.error('Fetch error:', error.message, error);
         }
@@ -76,7 +122,7 @@ function App() {
       setRole('user');
       setCredits(0);
     }
-  }, [user]);
+  }, [user?.id, impersonatedUser?.id]);
 
 
   useEffect(() => {
@@ -116,35 +162,60 @@ function App() {
       <TransactionHistoryModal
         isOpen={isHistoryOpen}
         onClose={() => setIsHistoryOpen(false)}
-        user={user}
+        user={impersonatedUser || user}
       />
 
       {/* Replaced ProfileOverlay with TopupModal here, Dropdown is in Header */}
       <CreditTopupModal
         isOpen={isTopupModalOpen}
         onClose={() => setIsTopupModalOpen(false)}
-        user={user}
+        user={impersonatedUser || user}
         onTopupSuccess={(newBalance) => setCredits(newBalance)}
       />
 
       <ChatOverlay
         isOpen={isChatOpen}
-        onClose={() => setIsChatOpen(false)}
+        onClose={() => {
+          setIsChatOpen(false);
+          setChatTrigger({ user: null, message: '' });
+        }}
         currentUser={user}
         onUnreadCountChange={setUnreadCount}
+        targetUser={chatTrigger.user}
+        initialMessage={chatTrigger.message}
       />
 
       {isAdminDashboardOpen && (
         <AdminDashboard
           role={role}
           onClose={() => setIsAdminDashboardOpen(false)}
-          onLoginAs={(targetUser) => {
+          onLoginAs={async (targetUser) => {
             if (!impersonatedUser) {
               setOriginalUserData({ credits, role });
             }
-            setImpersonatedUser(targetUser);
-            setCredits(targetUser.credits || 0);
-            setRole(targetUser.role || 'user');
+            // Fetch target user profile immediately to ensure we have latest credits/role
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', targetUser.id)
+              .single();
+
+            const mergedUser = {
+              ...targetUser,
+              ...profile,
+              user_metadata: {
+                ...targetUser.user_metadata,
+                avatar_url: profile?.avatar_url || targetUser.user_metadata?.avatar_url
+              }
+            };
+
+            setImpersonatedUser(mergedUser);
+            setCredits(mergedUser.credits || 0);
+            setRole(mergedUser.role || 'user');
+            console.log('--- IMPERSONATION STARTED ---');
+            console.log('Merged User:', mergedUser);
+            console.log('Credits Set:', mergedUser.credits);
+            console.log('Role Set:', mergedUser.role);
             setIsAdminDashboardOpen(false);
           }}
         />
@@ -193,10 +264,14 @@ function App() {
               </div>
             )}
 
-            <a href="#" onClick={() => setIsMobileMenuOpen(false)} style={mobileNavLink}>{t('COMMUNITY')}</a>
-            <a href="https://www.facebook.com/profile.php?id=61582500973596" target="_blank" rel="noreferrer" onClick={() => setIsMobileMenuOpen(false)} style={mobileNavLink}>{t('NEWS')}</a>
-            <a href="#" onClick={() => setIsMobileMenuOpen(false)} style={mobileNavLink}>{t('GAME_INFO')}</a>
-            <a href="#" onClick={() => setIsMobileMenuOpen(false)} style={mobileNavLink}>{t('MARKET')}</a>
+            <a href="#" onClick={() => { setCurrentView('home'); setIsMobileMenuOpen(false); }} style={mobileNavLink}>{t('HOME')}</a>
+            <a href="https://www.facebook.com/people/ARC-Raiders-Thailand/61582500973596/" target="_blank" rel="noreferrer" onClick={() => setIsMobileMenuOpen(false)} style={mobileNavLink}>{t('COMMUNITY')}</a>
+            <a href="https://arcraiders.com/news" target="_blank" rel="noreferrer" onClick={() => setIsMobileMenuOpen(false)} style={mobileNavLink}>{t('NEWS')}</a>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <span style={{ ...mobileNavLink, color: 'rgba(255,255,255,0.4)', fontSize: '14px' }}>{t('GAME_INFO')}</span>
+              <a href="#" onClick={() => { setCurrentView('traders'); setIsMobileMenuOpen(false); }} style={{ ...mobileNavLink, paddingLeft: '20px', fontSize: '20px' }}>- {t('TRADERS')}</a>
+            </div>
+            <a href="#" onClick={() => { setCurrentView('home'); setIsMobileMenuOpen(false); }} style={mobileNavLink}>{t('MARKET')}</a>
 
             <div style={{ height: '1px', background: '#333', margin: '10px 0' }}></div>
 
@@ -243,8 +318,10 @@ function App() {
         {/* Sticky Header */}
         <header style={{
           ...headerStyle,
-          position: 'absolute', // Changed from fixed to absolute to move with the scale
-          width: '100%'
+          position: 'fixed',
+          width: '100%',
+          backdropFilter: 'blur(10px)',
+          background: 'rgba(5, 5, 5, 0.8)',
         }}>
           {/* Mobile Menu Toggle - visible on mobile only */}
           <div className="hide-desktop" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} style={{ cursor: 'pointer', zIndex: 1002, color: '#fff', padding: '5px' }}>
@@ -253,7 +330,7 @@ function App() {
 
           {/* Logo/Brand for Mobile */}
           <div className="hide-desktop" style={{ fontSize: '18px', fontWeight: 'bold', letterSpacing: '2px', marginLeft: '10px' }}>
-            ARC RAIDERS
+            ARC RAIDERS TH MARKETPLACE
           </div>
 
           {/* Desktop Left Social Icons - hidden on mobile */}
@@ -265,10 +342,58 @@ function App() {
 
           {/* Desktop Nav - hidden on mobile */}
           <nav className="header-center hide-mobile" style={navStyle}>
-            <a href="#" className="hover-cyan">{t('COMMUNITY')}</a>
-            <a href="https://www.facebook.com/profile.php?id=61582500973596" target="_blank" rel="noreferrer" className="hover-cyan">{t('NEWS')}</a>
-            <a href="#" className="hover-cyan">{t('GAME_INFO')}</a>
-            <a href="#" className="hover-cyan">{t('MARKET')}</a>
+            <a href="#" className="hover-cyan" onClick={() => setCurrentView('home')}>{t('HOME')}</a>
+            <a href="https://www.facebook.com/people/ARC-Raiders-Thailand/61582500973596/" target="_blank" rel="noreferrer" className="hover-cyan">{t('COMMUNITY')}</a>
+            <a href="https://arcraiders.com/news" target="_blank" rel="noreferrer" className="hover-cyan">{t('NEWS')}</a>
+
+            <div
+              style={{ position: 'relative' }}
+              onMouseEnter={() => setIsGameInfoOpen(true)}
+              onMouseLeave={() => setIsGameInfoOpen(false)}
+            >
+              <a href="#" className="hover-cyan" style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                {t('GAME_INFO')} <ChevronDown size={14} />
+              </a>
+              <AnimatePresence>
+                {isGameInfoOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 10 }}
+                    style={{
+                      position: 'absolute',
+                      top: '100%',
+                      left: '0',
+                      background: '#0a0a0a',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      borderRadius: '8px',
+                      padding: '10px 0',
+                      minWidth: '180px',
+                      zIndex: 1000,
+                      boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+                      marginTop: '10px'
+                    }}
+                  >
+                    <div
+                      onClick={() => { setCurrentView('traders'); setIsGameInfoOpen(false); }}
+                      style={{
+                        padding: '10px 20px',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        transition: 'all 0.2s'
+                      }}
+                      className="hover-cyan-bg"
+                    >
+                      {t('TRADERS')}
+                    </div>
+                    {/* Placeholder for other game info items */}
+                    <div style={{ padding: '10px 20px', opacity: 0.5, fontSize: '14px' }}>WIKI (SOON)</div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            <a href="#" className="hover-cyan" onClick={() => setCurrentView('home')}>{t('MARKET')}</a>
           </nav>
 
           <div className="header-right" style={{ ...headerRightStyle, gap: isMobile ? '8px' : '20px' }}>
@@ -327,9 +452,9 @@ function App() {
                   }}
                   title="Profile"
                 >
-                  {user?.user_metadata?.avatar_url ? (
+                  {(impersonatedUser || user)?.user_metadata?.avatar_url ? (
                     <img
-                      src={user.user_metadata.avatar_url}
+                      src={(impersonatedUser || user).user_metadata.avatar_url}
                       alt="User Avatar"
                       style={{
                         width: '24px',
@@ -377,103 +502,131 @@ function App() {
           </div>
         </header>
 
-        {/* Hero Section */}
-        <section id="hero" style={heroStyle}>
-          {/* YouTube Video Background Overlay */}
-          <div style={videoBgWrapperStyle}>
-            <iframe
-              src="https://www.youtube.com/embed/xuftkDxjGT4?autoplay=1&mute=1&controls=0&loop=1&playlist=xuftkDxjGT4&showinfo=0&rel=0&iv_load_policy=3&start=13&end=164"
-              title="Hero Background Video"
-              frameBorder="0"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              style={videoBgIframeStyle}
-            ></iframe>
-            <div className="bg-pattern-overlay"></div>
-            <div className="bg-dots"></div>
-            <div style={videoOverlayStyle}></div>
-            <div style={bottomFadeStyle}></div>
-          </div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 1 }}
-            style={{
-              ...heroContentStyle,
-              padding: isMobile ? '0 15px' : '0 20px'
-            }}
-          >
-            <img src={logoImg} alt="ARC RAIDERS" style={logoImgStyle} />
-            <h2 style={{
-              ...taglineStyle,
-              fontSize: isMobile ? '16px' : '24px',
-              letterSpacing: isMobile ? '4px' : '8px',
-              marginBottom: isMobile ? '30px' : '40px'
-            }}>{t('AVAILABLE_NOW')}</h2>
-
-            <div style={{
-              ...heroActionsStyle,
-              flexDirection: isMobile ? 'column' : 'row',
-              alignItems: 'center',
-              gap: isMobile ? '15px' : '20px'
-            }}>
-              <ArcButton color="blue" onClick={() => window.open('https://store.steampowered.com/app/1808500/ARC_Raiders/', '_blank')} style={{ width: isMobile ? '100%' : 'auto' }}>
-                <ShoppingCart size={20} /> STEAM
-              </ArcButton>
-              <ArcButton color="green" onClick={() => scrollToSection('trailers')} style={{ width: isMobile ? '100%' : 'auto' }}>
-                <Play size={20} /> {t('WATCH_TRAILERS')}
-              </ArcButton>
-              <ArcButton color="red" style={{ width: isMobile ? '100%' : 'auto' }}>
-                <Users size={20} /> {t('MISSION_BOARD')}
-              </ArcButton>
-            </div>
-
+        <AnimatePresence mode="wait">
+          {currentView === 'home' ? (
             <motion.div
-              animate={{ y: [0, 10, 0] }}
-              transition={{ repeat: Infinity, duration: 2 }}
-              onClick={() => scrollToSection('trailers')}
-              style={{ marginTop: '50px', cursor: 'pointer' }}
+              key="home"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.5 }}
             >
-              <ChevronDown size={40} className="text-cyan" />
-              <p style={{ fontSize: '12px', letterSpacing: '2px' }}>{t('SCROLL')}</p>
+              {/* Hero Section */}
+              <section id="hero" style={heroStyle}>
+                {/* YouTube Video Background Overlay */}
+                <div style={videoBgWrapperStyle}>
+                  <HeroVideo
+                    videoId="xuftkDxjGT4"
+                    start={13}
+                    end={164}
+                    style={videoBgIframeStyle}
+                  />
+                  <div className="bg-pattern-overlay"></div>
+                  <div className="bg-dots"></div>
+                  <div style={videoOverlayStyle}></div>
+                  <div style={bottomFadeStyle}></div>
+                </div>
+
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 1 }}
+                  style={{
+                    ...heroContentStyle,
+                    padding: isMobile ? '0 15px' : '0 20px'
+                  }}
+                >
+                  <img src={logoImg} alt="ARC RAIDERS" style={logoImgStyle} />
+                  <h2 style={{
+                    ...taglineStyle,
+                    fontSize: isMobile ? '16px' : '24px',
+                    letterSpacing: isMobile ? '4px' : '8px',
+                    marginBottom: isMobile ? '30px' : '40px'
+                  }}>{t('AVAILABLE_NOW')}</h2>
+
+                  <div style={{
+                    ...heroActionsStyle,
+                    flexDirection: isMobile ? 'column' : 'row',
+                    alignItems: 'center',
+                    gap: isMobile ? '15px' : '20px'
+                  }}>
+                    <ArcButton color="blue" onClick={() => window.open('https://store.steampowered.com/app/1808500/ARC_Raiders/', '_blank')} style={{ width: isMobile ? '100%' : 'auto' }}>
+                      <ShoppingCart size={20} /> STEAM
+                    </ArcButton>
+                    <ArcButton color="green" onClick={() => scrollToSection('mission-board')} style={{ width: isMobile ? '100%' : 'auto' }}>
+                      <Briefcase size={20} style={{ marginRight: '8px' }} /> {t('MISSION_BOARD')}
+                    </ArcButton>
+                    <ArcButton color="red" onClick={() => window.open('https://www.facebook.com/people/ARC-Raiders-Thailand/61582500973596/', '_blank')} style={{ width: isMobile ? '100%' : 'auto' }}>
+                      <Users size={20} /> {t('COMMUNITY')}
+                    </ArcButton>
+                  </div>
+
+                  <motion.div
+                    animate={{ y: [0, 10, 0] }}
+                    transition={{ repeat: Infinity, duration: 2 }}
+                    onClick={() => scrollToSection('mission-board')}
+                    style={{ marginTop: '50px', cursor: 'pointer' }}
+                  >
+                    <ChevronDown size={40} className="text-cyan" />
+                    <p style={{ fontSize: '12px', letterSpacing: '2px' }}>{t('SCROLL')}</p>
+                  </motion.div>
+                </motion.div>
+              </section>
+
+              {/* Mission Board Section */}
+              <section id="mission-board" style={{ ...sectionStyle, backgroundColor: '#050505', padding: isMobile ? '40px 10px' : '80px 20px' }}>
+                <MissionBoard
+                  currentUser={user}
+                  onContact={(mission) => {
+                    if (!user) {
+                      alert(t('PLEASE_LOGIN'));
+                      return;
+                    }
+                    if (mission?.user) {
+                      setChatTrigger({
+                        user: {
+                          id: mission.user.id,
+                          email: mission.user.name
+                        },
+                        message: `สวัสดีครับ ผมสนใจภารกิจ "${mission.title}" ที่คุณประกาศไว้ครับ`
+                      });
+                      setIsChatOpen(true);
+                    }
+                  }}
+                />
+                <OnlineTicker />
+              </section>
+
+              {/* Platforms Section */}
+              <section id="platforms" style={{ ...sectionStyle, padding: isMobile ? '60px 20px' : '100px 20px' }}>
+                <h3 style={{ ...sectionTitleStyle, fontSize: isMobile ? '20px' : '32px' }}>{t('PLAY_ON_PLATFORM')}</h3>
+                <div style={{
+                  ...platformGridStyle,
+                  flexDirection: isMobile ? 'column' : 'row'
+                }}>
+                  {['STEAM', 'EPIC GAMES', 'PLAYSTATION 5', 'XBOX SERIES X|S', 'GEFORCE NOW'].map((p) => (
+                    <div key={p} className="platform-item" style={{
+                      ...platformItemStyle,
+                      width: isMobile ? '100%' : 'auto'
+                    }}>
+                      {p}
+                    </div>
+                  ))}
+                </div>
+              </section>
             </motion.div>
-          </motion.div>
-        </section>
-
-        {/* Trailer Section */}
-        <section id="trailers" style={{ ...sectionStyle, backgroundColor: '#050505', padding: isMobile ? '60px 20px' : '100px 20px' }}>
-          <h3 style={{ ...sectionTitleStyle, fontSize: isMobile ? '24px' : '32px' }}>{t('OFFICIAL_TRAILERS')}</h3>
-          <div style={videoContainerStyle}>
-            <iframe
-              width="100%"
-              height="100%"
-              src="https://www.youtube.com/embed/QywhD8zfppM"
-              title="ARC Raiders Trailer"
-              frameBorder="0"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-              style={{ borderRadius: '8px', boxShadow: '0 0 30px rgba(0, 255, 255, 0.2)' }}
-            ></iframe>
-          </div>
-        </section>
-
-        {/* Platforms Section */}
-        <section id="platforms" style={{ ...sectionStyle, padding: isMobile ? '60px 20px' : '100px 20px' }}>
-          <h3 style={{ ...sectionTitleStyle, fontSize: isMobile ? '20px' : '32px' }}>{t('PLAY_ON_PLATFORM')}</h3>
-          <div style={{
-            ...platformGridStyle,
-            flexDirection: isMobile ? 'column' : 'row'
-          }}>
-            {['STEAM', 'EPIC GAMES', 'PLAYSTATION 5', 'XBOX SERIES X|S', 'GEFORCE NOW'].map((p) => (
-              <div key={p} className="platform-item" style={{
-                ...platformItemStyle,
-                width: isMobile ? '100%' : 'auto'
-              }}>
-                {p}
-              </div>
-            ))}
-          </div>
-        </section>
+          ) : (
+            <motion.div
+              key="traders"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.5 }}
+            >
+              <Traders />
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Footer */}
         <footer style={footerStyle}>
@@ -488,15 +641,19 @@ function App() {
             <a href="#" className="hover-white">{t('HELP')}</a>
           </div>
           <p style={{ color: 'var(--text-secondary)', fontSize: '14px', padding: '0 20px' }}>
+            ARC RAIDERS THAILAND เป็นเว็บชุมชนสำหรับแฟนเกม มุ่งมั่นที่จะเชื่อมต่อผู้เล่นเข้าด้วยกัน ไม่ได้เกี่ยวข้องหรือได้รับการรับรองจาก Embark Studios พัฒนาโดย : Mommoei
+          </p>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '14px', padding: '0 20px' }}>
             © 2026 ARC RAIDERS MINI PROJECT. {t('ALL_RIGHTS')}.
           </p>
-          <p style={{ color: 'var(--arc-cyan)', fontSize: '12px', marginTop: '10px' }}>v1.0.0-BETA</p>
+          <p style={{ color: 'var(--arc-cyan)', fontSize: '12px', marginTop: '10px' }}>v1.1.0-BETA</p>
         </footer>
 
         {/* Global Style Injections (Quick and Dirty for Mini Project) */}
         <style>{`
         .hover-white:hover { color: #fff; cursor: pointer; }
         .hover-cyan:hover { color: var(--arc-cyan); }
+        .hover-cyan-bg:hover { background: rgba(0, 255, 255, 0.1); color: var(--arc-cyan); }
         .platform-item:hover { border-color: #fff; background: rgba(255,255,255,0.05); }
         
         @media (max-width: 768px) {
@@ -647,7 +804,7 @@ const videoOverlayStyle = {
   left: 0,
   width: '100%',
   height: '100%',
-  background: 'linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, transparent 50%, rgba(0,0,0,0.8) 100%)',
+  background: 'linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.4) 50%, rgba(0,0,0,0.9) 100%)', // Made darker
   zIndex: 1,
 };
 
@@ -676,7 +833,7 @@ const logoImgStyle = {
 };
 
 const taglineStyle = {
-  fontWeight: '700',
+  fontWeight: '900',
   letterSpacing: '8px',
   marginBottom: '40px',
   color: 'rgba(255,255,255,0.8)',

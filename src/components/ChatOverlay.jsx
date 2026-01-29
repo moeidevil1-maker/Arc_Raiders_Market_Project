@@ -4,7 +4,7 @@ import { X, Send, Users as UsersIcon, MessageCircle, Volume2, Trash2, Search, Me
 import { supabase } from '../lib/supabase';
 import { useLanguage } from '../lib/LanguageContext';
 
-const ChatOverlay = ({ isOpen, onClose, currentUser, onUnreadCountChange }) => {
+const ChatOverlay = ({ isOpen, onClose, currentUser, onUnreadCountChange, targetUser, initialMessage }) => {
     const { lang, t } = useLanguage();
     const [selectedChat, setSelectedChat] = useState(null);
     const [users, setUsers] = useState([]);
@@ -17,6 +17,7 @@ const ChatOverlay = ({ isOpen, onClose, currentUser, onUnreadCountChange }) => {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(true); // For mobile drawer
 
     const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
     useEffect(() => {
         const handleResize = () => {
@@ -33,6 +34,17 @@ const ChatOverlay = ({ isOpen, onClose, currentUser, onUnreadCountChange }) => {
             fetchUsers();
         }
     }, [isOpen]);
+
+    // Handle external chat trigger
+    useEffect(() => {
+        if (isOpen && targetUser) {
+            // Find user in our list or use the provided one
+            handleSelectChat(targetUser);
+            if (initialMessage) {
+                setMessageInput(initialMessage);
+            }
+        }
+    }, [isOpen, targetUser, initialMessage]);
 
     // Play notification sound
     const playNotificationSound = () => {
@@ -236,14 +248,13 @@ const ChatOverlay = ({ isOpen, onClose, currentUser, onUnreadCountChange }) => {
         setMessages([]);
     };
 
-    const handleDeleteChatHistory = async () => {
+    const handleDeleteChatHistory = () => {
         if (!selectedChat || !currentUser) return;
+        setShowDeleteConfirm(true);
+    };
 
-        const confirmDelete = window.confirm(
-            `${t('DELETE_CHAT_CONFIRM')} (${selectedChat.email})`
-        );
-
-        if (!confirmDelete) return;
+    const executeDeleteChat = async () => {
+        if (!selectedChat || !currentUser) return;
 
         try {
             // Delete all messages between current user and selected chat
@@ -256,10 +267,13 @@ const ChatOverlay = ({ isOpen, onClose, currentUser, onUnreadCountChange }) => {
 
             // Clear local messages
             setMessages([]);
-            alert(t('CHAT_DELETED'));
+            setShowDeleteConfirm(false);
+            // Optional: Success feedback could be improved from native alert, but for now just clear
+            // alert(t('CHAT_DELETED')); 
         } catch (error) {
             console.error('Error deleting chat history:', error.message);
             alert(t('CANT_DELETE'));
+            setShowDeleteConfirm(false);
         }
     };
 
@@ -326,6 +340,114 @@ const ChatOverlay = ({ isOpen, onClose, currentUser, onUnreadCountChange }) => {
                     style={styles.chatContainer}
                     onClick={(e) => e.stopPropagation()}
                 >
+                    {/* Delete Confirmation Modal */}
+                    <AnimatePresence>
+                        {showDeleteConfirm && (
+                            <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                style={{
+                                    position: 'absolute',
+                                    top: 0,
+                                    left: 0,
+                                    width: '100%',
+                                    height: '100%',
+                                    background: 'rgba(0,0,0,0.85)',
+                                    backdropFilter: 'blur(4px)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    zIndex: 50,
+                                    padding: '20px'
+                                }}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setShowDeleteConfirm(false);
+                                }}
+                            >
+                                <motion.div
+                                    initial={{ scale: 0.9, y: 20 }}
+                                    animate={{ scale: 1, y: 0 }}
+                                    exit={{ scale: 0.9, y: 20 }}
+                                    style={{
+                                        background: '#1a1a1a',
+                                        border: '1px solid #333',
+                                        padding: '30px',
+                                        borderRadius: '16px',
+                                        width: '100%',
+                                        maxWidth: '400px',
+                                        textAlign: 'center',
+                                        boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
+                                        position: 'relative'
+                                    }}
+                                    onClick={(e) => e.stopPropagation()}
+                                >
+                                    <div style={{
+                                        width: '60px',
+                                        height: '60px',
+                                        background: 'rgba(255, 68, 68, 0.1)',
+                                        borderRadius: '50%',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        margin: '0 auto 20px auto',
+                                        color: '#ff4444'
+                                    }}>
+                                        <Trash2 size={32} />
+                                    </div>
+
+                                    <h3 style={{ color: '#fff', marginTop: 0, marginBottom: '10px', fontSize: '18px' }}>
+                                        {t('DELETE_CHAT_HIST')}
+                                    </h3>
+
+                                    <p style={{ color: 'rgba(255,255,255,0.6)', marginBottom: '25px', lineHeight: '1.6', fontSize: '14px' }}>
+                                        {t('DELETE_CHAT_CONFIRM')}
+                                        <br />
+                                        <span style={{ color: 'var(--arc-yellow)', fontWeight: 'bold' }}>
+                                            {selectedChat?.email}
+                                        </span>
+                                    </p>
+
+                                    <div style={{ display: 'flex', gap: '15px', justifyContent: 'center' }}>
+                                        <button
+                                            onClick={() => setShowDeleteConfirm(false)}
+                                            style={{
+                                                padding: '12px 24px',
+                                                background: 'rgba(255,255,255,0.1)',
+                                                border: 'none',
+                                                color: '#fff',
+                                                borderRadius: '8px',
+                                                cursor: 'pointer',
+                                                fontSize: '14px',
+                                                fontWeight: '600',
+                                                flex: 1
+                                            }}
+                                        >
+                                            {t('CANCEL')}
+                                        </button>
+                                        <button
+                                            onClick={executeDeleteChat}
+                                            style={{
+                                                padding: '12px 24px',
+                                                background: '#ff4444',
+                                                border: 'none',
+                                                color: '#000',
+                                                borderRadius: '8px',
+                                                cursor: 'pointer',
+                                                fontSize: '14px',
+                                                fontWeight: 'bold',
+                                                flex: 1
+                                            }}
+                                        >
+                                            {t('CONFIRM')}
+                                        </button>
+                                    </div>
+                                </motion.div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+
                     {/* Header */}
                     <div style={styles.headerStyle}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
